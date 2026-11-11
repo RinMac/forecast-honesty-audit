@@ -6,3 +6,4 @@ results/selftest/
 results/quickcheck/
 results/demo/
 .claude/
+.serena/
