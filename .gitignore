@@ -4,3 +4,5 @@ __pycache__/
 # test runs: synthetic self-test and the 5-day quick check are not research results
 results/selftest/
 results/quickcheck/
+results/demo/
+.claude/

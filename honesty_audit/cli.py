@@ -86,6 +86,20 @@ def main(argv=None):
     c.add_argument("--n-test", type=int, default=20)
     c.add_argument("--tolerance", type=float, default=0.05)
     c.add_argument("--seed", type=int, default=0)
+    d = sub.add_parser("demo", help="live demo: a judge picks a city, a date and a bit-width")
+    d.add_argument("--model", default="chronos-bolt-tiny")
+    d.add_argument("--data", default="csv:data/open_meteo_10cities_2025-06-01_2026-10-31.csv:temperature_2m:timestamp:city")
+    d.add_argument("--city", help="left out = you are asked")
+    d.add_argument("--date", help="YYYY-MM-DD, the day to forecast")
+    d.add_argument("--bits", type=int, help="32 (full), 16, 8, 6, 4, 3 or 2")
+    d.add_argument("--fix", action="store_true", help="also show the rolling conformal fix")
+    d.add_argument("--out", default="results/demo")
+    d.add_argument("--no-open", action="store_true", help="do not open the page in the browser")
+    a = sub.add_parser("app", help="local page for the live demo (dropdowns, runs on this laptop only)")
+    a.add_argument("--model", default="chronos-bolt-tiny")
+    a.add_argument("--data", default="csv:data/open_meteo_10cities_2025-06-01_2026-10-31.csv:temperature_2m:timestamp:city")
+    a.add_argument("--port", type=int, default=8765)
+    a.add_argument("--no-open", action="store_true", help="do not open the page in the browser")
     g = sub.add_parser("report", help="rebuild the HTML report from results.json")
     g.add_argument("results")
     args = p.parse_args(argv)
@@ -96,6 +110,39 @@ def main(argv=None):
         path = write_report(res, os.path.dirname(args.results) or ".")
         print(f"report written to {path}")
         return
+
+    if args.cmd == "app":
+        from .app import serve
+
+        series, _ = _load_data(args.data, 0)
+        print("[app] loading the model ...")
+        serve(load_model(args.model), series, args.port, open_browser=not args.no_open)
+        return
+
+    if args.cmd == "demo":
+        import webbrowser
+
+        from .demo import run_demo, write_demo
+
+        series, _ = _load_data(args.data, 0)
+        print("[demo] loading the model ...")
+        model = load_model(args.model)
+        ask = not (args.city and args.date and args.bits)  # anything missing: ask, and keep asking
+        while True:
+            try:
+                city = args.city or input(f"City ({', '.join(series)}): ").strip().lower().replace(" ", "_")
+                date = args.date or input("Date to forecast (YYYY-MM-DD): ").strip()
+                bits = args.bits or int(input("Bits (32 = full model, 16, 8, 6, 4, 3, 2): "))
+                res = run_demo(model, series, city, date, bits, fix=args.fix)
+                path = write_demo(res, args.out)
+                parts = [f"{k}: {res[k]['inside']}/24 inside" for k in ("full", "small", "fixed") if k in res]
+                print(f"[demo] {city} {date}, {bits}-bit -> " + "; ".join(parts) + f". Page: {path}")
+                if not args.no_open:
+                    webbrowser.open("file://" + os.path.abspath(path))
+            except ValueError as e:
+                print(f"[demo] {e}")
+            if not ask or input("Another one? (y / Enter to stop): ").strip().lower() != "y":
+                return
 
     if args.cmd == "int8check":
         # use the same windows as the main run: same data, context, horizon, n-calib and n-test
