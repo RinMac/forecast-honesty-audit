@@ -1,0 +1,2 @@
+# keep data files byte-for-byte, so the published checksum stays valid
+*.csv -text

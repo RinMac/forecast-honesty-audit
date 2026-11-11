@@ -1,0 +1,374 @@
+<meta charset="utf-8">
+<title>Forecast Honesty Report</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Familjen+Grotesk:wght@500;600;700&family=Source+Sans+3:wght@400;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: one calm column like a calibration certificate; the live chart is the instrument at the top. */
+:root{
+  --paper:#f3f6f8; --surface:#ffffff; --ink:#14202a; --muted:#566573; --rule:#d5dde4;
+  --band:#1d6a86; --band-soft:rgba(29,106,134,.16); --line:#0e3a4a;
+  --pass:#26734a; --fail:#b23a2e; --warn:#9a6411;
+  --display:"Familjen Grotesk","Segoe UI",system-ui,sans-serif;
+  --body:"Source Sans 3","Segoe UI",system-ui,sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,"SFMono-Regular",Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --paper:#0e141a; --surface:#151d25; --ink:#e3e9ee; --muted:#93a2af; --rule:#28343f;
+  --band:#5db4d3; --band-soft:rgba(93,180,211,.18); --line:#bfe6f4;
+  --pass:#5fc28d; --fail:#f07d70; --warn:#e3ab4c; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --paper:#0e141a; --surface:#151d25; --ink:#e3e9ee; --muted:#93a2af; --rule:#28343f;
+  --band:#5db4d3; --band-soft:rgba(93,180,211,.18); --line:#bfe6f4;
+  --pass:#5fc28d; --fail:#f07d70; --warn:#e3ab4c; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--paper);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.5;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:28px 56px}
+.wrap{max-width:1080px;margin:0 auto;display:grid;gap:32px}
+h1,h2{font-family:var(--display);text-wrap:balance;margin:0;letter-spacing:-.01em}
+h1{font-size:clamp(1.7rem,3.6vw,2.5rem);line-height:1.12;font-weight:700}
+h2{font-size:1.3rem;font-weight:600}
+p{margin:0;max-width:68ch}
+.eyebrow{font-family:var(--mono);font-size:.75rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.meta{font-family:var(--mono);font-size:.8rem;color:var(--muted);display:flex;flex-wrap:wrap;gap:6px 18px}
+header{display:grid;gap:12px}
+.banner{border:1px solid var(--warn);color:var(--ink);background:color-mix(in srgb,var(--warn) 12%,transparent);
+  padding:12px 14px;border-radius:6px;font-size:.95rem}
+.banner b{color:var(--warn)}
+section{display:grid;gap:14px}
+.panel{background:var(--surface);border:1px solid var(--rule);border-radius:8px;padding:18px;display:grid;gap:16px;min-width:0}
+.controls{display:flex;flex-wrap:wrap;gap:16px 28px;align-items:end}
+.ctl{display:grid;gap:6px;min-width:0}
+.ctl label,.ctl .lab{font-size:.8rem;font-weight:600;color:var(--muted);letter-spacing:.02em}
+.ctl.grow{flex:1 1 340px}
+.ladder{display:grid;gap:4px;width:100%;max-width:460px}
+.ladder input{width:100%;accent-color:var(--band)}
+.ticks{display:flex;justify-content:space-between;gap:6px;font-family:var(--mono);font-size:.72rem;color:var(--muted)}
+.ticks span.on{color:var(--ink);font-weight:600}
+.seg{display:inline-flex;border:1px solid var(--rule);border-radius:6px;overflow:hidden;flex-wrap:wrap}
+.seg button{font:inherit;font-size:.88rem;border:0;background:transparent;color:var(--ink);padding:7px 12px;cursor:pointer}
+.seg button+button{border-left:1px solid var(--rule)}
+.seg button[aria-pressed="true"]{background:var(--band);color:var(--surface)}
+.check{display:flex;gap:8px;align-items:center;font-size:.9rem}
+.check input{accent-color:var(--band);width:16px;height:16px}
+.btn{font:inherit;font-size:.9rem;font-weight:600;border:1px solid var(--band);color:var(--band);background:transparent;
+  padding:7px 14px;border-radius:6px;cursor:pointer}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--band);outline-offset:2px}
+.chart{width:100%;overflow-x:auto}
+.chart svg{display:block;width:100%;min-width:560px;height:auto}
+.readout{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px}
+.read{display:grid;gap:2px;padding-top:10px;border-top:2px solid var(--rule)}
+.read .big{font-family:var(--mono);font-size:1.6rem;font-weight:600;font-variant-numeric:tabular-nums}
+.read .small{font-size:.85rem;color:var(--muted)}
+.pill{display:inline-block;font-family:var(--mono);font-size:.72rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;
+  padding:2px 8px;border-radius:999px;border:1px solid currentColor;white-space:nowrap}
+.pill.pass{color:var(--pass)} .pill.FAIL{color:var(--fail)} .pill.over-cautious{color:var(--warn)} .pill.wide{color:var(--warn)} .pill.inconclusive{color:var(--muted)}
+.legend{display:flex;flex-wrap:wrap;gap:6px 18px;font-size:.82rem;color:var(--muted)}
+.legend i{display:inline-block;width:12px;height:12px;border-radius:2px;margin-right:6px;vertical-align:-1px}
+.tablewrap{overflow-x:auto;min-width:0}
+table{border-collapse:collapse;width:100%;font-size:.88rem}
+th,td{text-align:right;padding:8px 10px;border-bottom:1px solid var(--rule);white-space:nowrap;font-variant-numeric:tabular-nums}
+th{font-weight:600;color:var(--muted);font-size:.78rem;letter-spacing:.02em}
+th:first-child,td:first-child{text-align:left}
+td.num{font-family:var(--mono);font-size:.82rem}
+tr.sel td{background:var(--band-soft)}
+.bp td{text-align:left;white-space:normal}
+.bp .safe{font-family:var(--mono);font-weight:600}
+.notes{display:grid;gap:8px;font-size:.92rem;color:var(--muted)}
+.notes li{max-width:72ch}
+select{font:inherit;font-size:.88rem;padding:5px 8px;border-radius:6px;border:1px solid var(--rule);background:var(--surface);color:var(--ink)}
+@media (prefers-reduced-motion:no-preference){.band,.dot{transition:opacity .25s}}
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">Forecast honesty audit</div>
+    <h1 id="headline">Does the model keep its 80% promise after compression?</h1>
+    <p id="lede">When a forecasting model says it is 80% sure, about 8 in 10 true values should land inside its range. This report checks that promise at every compression level, then checks it again after a conformal fix.</p>
+    <div class="meta" id="meta"></div>
+    <div class="banner" id="banner" hidden></div>
+  </header>
+
+  <section aria-labelledby="live-h">
+    <h2 id="live-h">Live check</h2>
+    <div class="panel">
+      <div class="controls">
+        <div class="ctl grow">
+          <span class="lab" id="ladder-lab">Precision of the model's weights</span>
+          <div class="ladder">
+            <input type="range" id="ladder" min="0" max="1" step="1" value="0" aria-labelledby="ladder-lab">
+            <div class="ticks" id="ticks"></div>
+          </div>
+        </div>
+        <div class="ctl">
+          <span class="lab">Which range</span>
+          <div class="seg" id="method" role="group" aria-label="Which range to show">
+            <button type="button" data-m="raw" aria-pressed="true">Model's own</button>
+            <button type="button" data-m="split_cqr" aria-pressed="false">Split conformal fix</button>
+            <button type="button" data-m="adaptive_cqr" aria-pressed="false">Adaptive fix</button>
+          </div>
+        </div>
+        <div class="ctl">
+          <label class="check"><input type="checkbox" id="keepio"> Keep input and output layers at full precision</label>
+          <button type="button" class="btn" id="reveal">Hide the true values</button>
+        </div>
+      </div>
+      <div class="chart" id="chart"></div>
+      <div class="legend">
+        <span><i style="background:var(--band-soft);border:1px solid var(--band)"></i>80% range</span>
+        <span><i style="background:var(--line);height:2px;vertical-align:3px"></i>median forecast</span>
+        <span><i style="background:var(--muted);height:2px;vertical-align:3px"></i>history the model saw</span>
+        <span><i style="background:var(--ink);border-radius:50%"></i>true value inside</span>
+        <span><i style="background:var(--fail);border-radius:50%"></i>true value outside</span>
+      </div>
+      <div class="readout">
+        <div class="read"><span class="small">True values inside the range, this series</span><span class="big" id="r-count">&ndash;</span><span class="small" id="r-count-sub"></span></div>
+        <div class="read"><span class="small">Audit over all test windows (95% CI)</span><span class="big" id="r-audit">&ndash;</span><span class="small" id="r-audit-sub"></span></div>
+        <div class="read"><span class="small">Change versus the full model (95% CI)</span><span class="big" id="r-diff">&ndash;</span><span class="small" id="r-diff-sub"></span></div>
+      </div>
+    </div>
+  </section>
+
+  <section aria-labelledby="bp-h">
+    <h2 id="bp-h">Breaking points</h2>
+    <p>The lowest precision that still passes, going down from 16 bits. A level fails when we are 95% confident its coverage sits more than the tolerance below the promise. A level that covers only by giving much wider ranges (a clearly worse interval score than the full model) also counts as a breaking point.</p>
+    <div class="panel tablewrap"><table class="bp" id="bp"></table></div>
+  </section>
+
+  <section aria-labelledby="full-h">
+    <h2 id="full-h">Every compression level</h2>
+    <div class="controls">
+      <div class="ctl"><label for="lvl">Promised coverage</label><select id="lvl"></select></div>
+      <div class="ctl"><label for="tmethod">Range</label>
+        <select id="tmethod">
+          <option value="raw">Model's own range</option>
+          <option value="split_cqr">Rolling split conformal fix</option>
+          <option value="static_cqr">Static split fix (fitted once)</option>
+          <option value="weighted_cqr">Weighted conformal fix</option>
+          <option value="adaptive_cqr">Adaptive conformal fix</option>
+        </select></div>
+    </div>
+    <div class="panel tablewrap"><table id="full"></table></div>
+  </section>
+
+  <section aria-labelledby="notes-h">
+    <h2 id="notes-h">How to read this</h2>
+    <ul class="notes" id="notes"></ul>
+  </section>
+</div>
+
+<script>
+const D = /*__AUDIT_DATA__*/null;
+(function(){
+  const $ = id => document.getElementById(id);
+  const pct = x => (x == null ? "–" : (100*x).toFixed(1) + "%");
+  const pp = x => (x == null ? "–" : (x >= 0 ? "+" : "−") + Math.abs(100*x).toFixed(1));
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+  const METHOD_NAMES = {raw:"Model's own range", split_cqr:"Rolling split conformal fix", static_cqr:"Static split fix (fitted once)", weighted_cqr:"Weighted conformal fix", adaptive_cqr:"Adaptive conformal fix"};
+  if (!D) { $("lede").textContent = "No audit data was embedded in this page."; return; }
+
+  const cfg = D.meta.config, H = cfg.horizon;
+  const byName = Object.fromEntries(D.variants.map(v => [v.name, v]));
+  const ladder = D.variants.filter(v => v.method === "none" || (v.method === "quant" && !v.keep_io))
+                  .sort((a,b) => b.level - a.level);
+  const shortName = v => v.method === "none" ? "fp32" : (v.level >= 16 ? "fp16" : v.level + "-bit");
+
+  // ---------- header
+  $("headline").textContent = `Does ${D.meta.model} keep its 80% promise after compression?`;
+  $("meta").innerHTML = [
+    `Data: ${esc(D.meta.data || "unknown")}`,
+    `${D.meta.n_series} series, ${D.meta.n_test_windows} test windows of ${H} steps`,
+    `Run ${esc(D.meta.run_utc.replace("T"," ").replace("+00:00"," UTC"))}`
+  ].map(s => `<span>${s}</span>`).join("");
+  const isTest = /stand-in/.test(D.meta.model) || /synthetic/i.test(D.meta.data || "");
+  if (isTest) {
+    $("banner").hidden = false;
+    $("banner").innerHTML = "<b>Pipeline test, not a research result.</b> These numbers come from a small stand-in network and/or synthetic data, used to check that the audit code works end to end. Run the same command with Chronos-Bolt on real data before quoting any number.";
+  }
+
+  // ---------- live check state
+  const state = {i: 0, method: "raw", keepio: false, revealed: true};
+  const slider = $("ladder");
+  slider.max = ladder.length - 1;
+  $("ticks").innerHTML = ladder.map((v,k) => `<span data-k="${k}">${shortName(v)}</span>`).join("");
+
+  function currentVariant() {
+    const base = ladder[state.i];
+    if (state.keepio && base.method === "quant" && base.level < 16) {
+      const alt = byName[`${base.name} + I/O kept`];
+      if (alt) return alt;
+    }
+    return base;
+  }
+
+  const demo = D.demo, truth = demo.truth, hist = demo.history;
+  const NS = "http://www.w3.org/2000/svg";
+  function el(tag, attrs, parent) {
+    const e = document.createElementNS(NS, tag);
+    for (const k in attrs) e.setAttribute(k, attrs[k]);
+    if (parent) parent.appendChild(e);
+    return e;
+  }
+  function niceTicks(lo, hi, n) {
+    const span = hi - lo, step0 = span / n, mag = Math.pow(10, Math.floor(Math.log10(step0)));
+    const step = [1,2,2.5,5,10].map(m => m*mag).find(s => span/s <= n) || 10*mag;
+    const out = [];
+    for (let t = Math.ceil(lo/step)*step; t <= hi + 1e-9; t += step) out.push(+t.toFixed(10));
+    return out;
+  }
+
+  function drawChart() {
+    const v = currentVariant(), dv = demo.variants[v.name];
+    const band = dv[state.method] || dv.raw;
+    const lo = band[0], hi = band[1], med = dv.median;
+    const W = 960, Ht = 380, m = {l: 62, r: 14, t: 14, b: 38};
+    const n = hist.length + truth.length;
+    const base = hist.concat(truth);
+    let ymin = Math.min(...base), ymax = Math.max(...base);
+    const pad = 0.25 * (ymax - ymin || 1); ymin -= pad; ymax += pad;
+    const x = i => m.l + (W - m.l - m.r) * i / (n - 1);
+    const y = val => m.t + (Ht - m.t - m.b) * (1 - (val - ymin) / (ymax - ymin));
+    const svg = el("svg", {viewBox: `0 0 ${W} ${Ht}`, role: "img",
+      "aria-label": `Forecast of ${demo.series_id} with its 80 percent range at ${shortName(v)}`});
+    const defs = el("defs", {}, svg);
+    const cp = el("clipPath", {id: "plot"}, defs);
+    el("rect", {x: m.l, y: m.t, width: W - m.l - m.r, height: Ht - m.t - m.b}, cp);
+    // grid + y labels
+    niceTicks(ymin, ymax, 5).forEach(t => {
+      el("line", {x1: m.l, x2: W - m.r, y1: y(t), y2: y(t), stroke: "var(--rule)", "stroke-width": 1}, svg);
+      const tx = el("text", {x: m.l - 8, y: y(t) + 4, "text-anchor": "end", fill: "var(--muted)",
+        "font-family": "var(--mono)", "font-size": 11}, svg);
+      tx.textContent = Math.abs(t) >= 1000 ? t.toLocaleString("en-IN") : String(+t.toFixed(2));
+    });
+    // window boundaries and x labels
+    for (let k = 0; k <= truth.length / H; k++) {
+      const i = hist.length + k * H;
+      if (i > n - 1) break;
+      el("line", {x1: x(i), x2: x(i), y1: m.t, y2: Ht - m.b, stroke: "var(--rule)",
+        "stroke-dasharray": k === 0 ? "" : "2 4", "stroke-width": k === 0 ? 1.5 : 1}, svg);
+      if (k < truth.length / H) {
+        const ts = demo.timestamps[k * H];
+        const lab = ts ? new Date(ts.replace(" ", "T")).toLocaleDateString("en-IN", {day: "numeric", month: "short"}) : `window ${k + 1}`;
+        const tx = el("text", {x: x(i) + 4, y: Ht - m.b + 18, fill: "var(--muted)", "font-family": "var(--mono)", "font-size": 11}, svg);
+        tx.textContent = lab;
+      }
+    }
+    const lab0 = el("text", {x: x(hist.length) - 6, y: m.t + 14, "text-anchor": "end", fill: "var(--muted)", "font-size": 12, "font-family": "var(--body)"}, svg);
+    lab0.textContent = "history";
+    const lab1 = el("text", {x: x(hist.length) + 6, y: m.t + 14, fill: "var(--muted)", "font-size": 12, "font-family": "var(--body)"}, svg);
+    lab1.textContent = "forecast";
+    const g = el("g", {"clip-path": "url(#plot)"}, svg);
+    // band, drawn per window so the windows stay separate
+    for (let k = 0; k < truth.length / H; k++) {
+      const pts = [];
+      for (let j = 0; j < H; j++) { const i = k*H + j; pts.push(`${x(hist.length+i)},${y(hi[i])}`); }
+      for (let j = H - 1; j >= 0; j--) { const i = k*H + j; pts.push(`${x(hist.length+i)},${y(lo[i])}`); }
+      el("polygon", {class: "band", points: pts.join(" "), fill: "var(--band-soft)", stroke: "var(--band)", "stroke-width": 1}, g);
+      const mp = [];
+      for (let j = 0; j < H; j++) { const i = k*H + j; mp.push(`${x(hist.length+i)},${y(med[i])}`); }
+      el("polyline", {points: mp.join(" "), fill: "none", stroke: "var(--line)", "stroke-width": 1.6, "stroke-dasharray": "5 3"}, g);
+    }
+    el("polyline", {points: hist.map((val,i) => `${x(i)},${y(val)}`).join(" "), fill: "none", stroke: "var(--muted)", "stroke-width": 1.5}, g);
+    let inside = 0;
+    truth.forEach((val, i) => {
+      const ok = val >= lo[i] && val <= hi[i];
+      if (ok) inside++;
+      if (state.revealed) el("circle", {class: "dot", cx: x(hist.length+i), cy: y(val), r: ok ? 2.4 : 3.4,
+        fill: ok ? "var(--ink)" : "var(--fail)"}, g);
+    });
+    $("chart").replaceChildren(svg);
+    return {inside, total: truth.length};
+  }
+
+  function update() {
+    const v = currentVariant();
+    [...$("ticks").children].forEach((s,k) => s.classList.toggle("on", k === state.i));
+    [...$("method").children].forEach(b => b.setAttribute("aria-pressed", String(b.dataset.m === state.method)));
+    $("reveal").textContent = state.revealed ? "Hide the true values" : "Reveal the true values";
+    const {inside, total} = drawChart();
+    if (state.revealed) {
+      $("r-count").textContent = `${inside} / ${total}`;
+      $("r-count-sub").textContent = `${pct(inside/total)} inside; the model promised 80%. Series: ${demo.series_id}, last ${total / H} windows.`;
+    } else {
+      $("r-count").textContent = "? / " + total;
+      $("r-count-sub").textContent = "True values hidden. Ask the audience to guess, then reveal.";
+    }
+    const s = v.levels["0.8"][state.method];
+    $("r-audit").innerHTML = `${pct(s.coverage.mean)} <span class="pill ${esc(s.verdict)}">${esc(s.verdict)}</span>`;
+    $("r-audit-sub").textContent = `95% CI ${pct(s.coverage.lo)} to ${pct(s.coverage.hi)}, ${s.coverage.n_windows} windows, ${s.coverage.n_series} series. ${v.name}.`;
+    const d = s.vs_full_model;
+    $("r-diff").textContent = v.method === "none" ? "reference" : `${pp(d.mean)} pts`;
+    $("r-diff-sub").textContent = v.method === "none" ? "This is the uncompressed model every other level is compared with." :
+      `95% CI ${pp(d.lo)} to ${pp(d.hi)} percentage points, same windows (paired).`;
+    renderFull();
+  }
+
+  slider.addEventListener("input", () => { state.i = +slider.value; update(); });
+  $("method").addEventListener("click", e => { const b = e.target.closest("button"); if (b) { state.method = b.dataset.m; update(); } });
+  $("keepio").addEventListener("change", e => { state.keepio = e.target.checked; update(); });
+  $("reveal").addEventListener("click", () => { state.revealed = !state.revealed; update(); });
+
+  // ---------- breaking points
+  (function renderBP() {
+    const bp = D.breaking_points, levels = cfg.nominal_levels.map(l => Math.round(l*100));
+    const cols = [];
+    levels.forEach(l => ["all layers", "I/O kept"].forEach(io => {
+      if (Object.keys(bp).some(k => k.startsWith(`${l}% |`) && k.endsWith(io))) cols.push([l, io]);
+    }));
+    let h = "<thead><tr><th>Range</th>" + cols.map(([l,io]) => `<th>${l}% range, ${io}</th>`).join("") + "</tr></thead><tbody>";
+    ["raw","split_cqr","static_cqr","weighted_cqr","adaptive_cqr"].forEach(mth => {
+      h += `<tr><td>${METHOD_NAMES[mth]}</td>`;
+      cols.forEach(([l,io]) => {
+        const r = bp[`${l}% | ${mth} | ${io}`];
+        if (!r) { h += "<td>–</td>"; return; }
+        const safe = r.safe_down_to ? `safe to <span class="safe">${esc(r.safe_down_to.replace(" + I/O kept",""))}</span>` : (r.breaks_at && r.breaks_at.startsWith("fp32") ? `<span class="pill FAIL">fails even at full precision</span>` : `<span class="pill inconclusive">no level confirmed safe</span>`);
+        const brk = r.breaks_at ? `breaks at ${esc(r.breaks_at.replace(" + I/O kept",""))}` : "never broke in this test";
+        h += `<td>${safe}<br><span class="small" style="color:var(--muted);font-size:.82rem">${brk}</span></td>`;
+      });
+      h += "</tr>";
+    });
+    $("bp").innerHTML = h + "</tbody>";
+  })();
+
+  // ---------- full table
+  $("lvl").innerHTML = cfg.nominal_levels.map(l => `<option value="${l}">${Math.round(l*100)}% range</option>`).join("");
+  $("lvl").addEventListener("change", renderFull);
+  $("tmethod").addEventListener("change", renderFull);
+  function renderFull() {
+    const lvl = String($("lvl").value), mth = $("tmethod").value, cur = currentVariant().name;
+    let h = "<thead><tr><th>Precision</th><th>Coverage</th><th>95% CI</th><th>Verdict</th><th>vs full model</th><th>Worst step</th><th>Width</th><th>Interval score</th><th>Quantile loss</th><th>Crossed</th><th>Weights MB</th><th>ms / window</th></tr></thead><tbody>";
+    D.variants.forEach(v => {
+      const s = v.levels[lvl][mth], d = s.vs_full_model;
+      h += `<tr class="${v.name === cur ? "sel" : ""}"><td>${esc(v.name)}</td>
+        <td class="num">${pct(s.coverage.mean)}</td>
+        <td class="num">${pct(s.coverage.lo)}&ndash;${pct(s.coverage.hi)}</td>
+        <td><span class="pill ${esc(s.verdict)}">${esc(s.verdict)}</span></td>
+        <td class="num">${v.method === "none" ? "ref" : pp(d.mean) + " [" + pp(d.lo) + ", " + pp(d.hi) + "]" + (d.verdict ? "<br>" + esc(d.verdict) : "")}</td>
+        <td class="num">${pct(s.worst_horizon_coverage)}</td>
+        <td class="num">${s.scaled_width == null ? "–" : s.scaled_width.toFixed(2)}</td>
+        <td class="num">${s.scaled_interval_score.mean == null ? "–" : s.scaled_interval_score.mean.toFixed(2)}</td>
+        <td class="num">${v.wql.toFixed(4)}</td>
+        <td class="num">${pct(v.crossing_rate)}</td>
+        <td class="num">${v.compression.est_weight_megabytes.toFixed(2)}</td>
+        <td class="num">${v.latency_ms_per_window.toFixed(1)}</td></tr>`;
+    });
+    $("full").innerHTML = h + "</tbody>";
+  }
+
+  // ---------- notes
+  const notes = [
+    `Pre-registered rule: ${D.meta.pre_registered_rule}. It was fixed before the run and is saved with the results.`,
+    "Coverage is measured on later windows than the ones used to fit the fix, so the future never leaks into calibration.",
+    "Confidence intervals resample whole series (a cluster bootstrap), because points inside one series are correlated.",
+    "Width and interval score are divided by each series' typical day-to-day change, so series of different sizes can be compared. Lower interval score is better; it punishes both misses and needless width.",
+    "“Crossed” is the share of forecasts where compression put a lower quantile above a higher one. They are sorted back into order before measuring.",
+    "Weights MB is the memory the linear-layer weights would need at that precision. Quantization here is simulated, so the ms / window column does not show a real speed-up.",
+    ...(D.meta.notes || []),
+  ];
+  if (D.real_int8 && D.real_int8.available) notes.push(`Real int8 speed check (PyTorch dynamic quantization, CPU): ${D.real_int8.fp32_ms_per_window} ms per window at fp32 versus ${D.real_int8.int8_ms_per_window} ms at int8, a ${D.real_int8.speedup}× speed-up.`);
+  $("notes").innerHTML = notes.map(n => `<li>${esc(n)}</li>`).join("");
+
+  update();
+})();
+</script>

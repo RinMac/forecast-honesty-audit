@@ -1,0 +1,6 @@
+numpy>=1.26
+pandas>=2.0
+torch>=2.2
+chronos-forecasting>=1.4   # Chronos-Bolt
+pytest>=8                  # tests only
+# TimesFM-2.5 (optional): install by following https://github.com/google-research/timesfm
