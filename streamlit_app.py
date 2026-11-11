@@ -43,7 +43,7 @@ with st.form("choices"):
     city = c1.selectbox("City", list(series), format_func=lambda c: c.replace("_", " ").title())
     day = c2.date_input("Day to forecast", value=last, min_value=first, max_value=last)
     bits = BITS[c3.selectbox("Shrink the model to", list(BITS), index=4)]
-    fix = c4.checkbox("Also show the conformal fix", value=True)
+    fix = c4.checkbox("Also show conformal recalibration (widens or narrows the range)", value=True)
     go = st.form_submit_button("Forecast", type="primary")
 
 if go:

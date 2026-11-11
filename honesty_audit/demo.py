@@ -184,7 +184,7 @@ def render_html(d: dict) -> str:
     name = "full model (no compression)" if d["bits"] >= 32 else f"{d['bits']}-bit model"
     bands = [("full", "#2f6fb0", "Full model"), ("small", "#d9822b", name.capitalize())]
     if "fixed" in d:
-        bands.append(("fixed", "#2e8b57", f"{name.capitalize()} + conformal fix"))
+        bands.append(("fixed", "#2e8b57", f"{name.capitalize()} + conformal recalibration"))
     # the y-axis follows the history, the truth and the FULL model's range. A badly
     # compressed model can give ranges hundreds of degrees wide; those are cut off at the
     # chart edge (and we say so) instead of squashing everything else flat.
@@ -262,7 +262,7 @@ honesty are measured faithfully, but the model in this demo does not actually us
     a = d.get("audit")
     if a:
         rows = ""
-        for m, col, lab in (("raw", "#d9822b", "No fix"), ("split_cqr", "#2e8b57", "With the rolling conformal fix")):
+        for m, col, lab in (("raw", "#d9822b", "No fix"), ("split_cqr", "#2e8b57", "With rolling conformal recalibration")):
             s = a["methods"][m]
             rows += f"""<div class="arow"><div class="lab">{lab}: {s["mean"]:.1%} <small>(95% confidence interval {s["lo"]:.1%} to {s["hi"]:.1%})</small></div>
 {_coverage_bar(s, col)}<p class="means"><b>Verdict: {e(s["verdict"])}.</b> {e(VERDICT_TEXT.get(s["verdict"], ""))}
@@ -284,7 +284,7 @@ advance. This is the result that counts; the single day above only shows how the
     if "fixed" in d:
         f = d["fixed"]
         verb = "widened" if f["shift"] >= 0 else "narrowed"
-        fix_note = (f'<p class="means"><b>How the fix worked here:</b> it looked at the {e(name)}\'s last '
+        fix_note = (f'<p class="means"><b>How the recalibration worked here:</b> it does not make the forecast more accurate; it only moves both edges of the range. It looked at the {e(name)}\'s last '
                     f'{f["calib_forecasts"]} forecasts (60 days in 10 cities, all before this date), saw how far the true '
                     f'values fell outside its ranges, and {verb} today\'s range by about {abs(f["shift"]):.2f}° on each side.</p>')
 
@@ -335,6 +335,8 @@ perfectly honest model can land well above or below 19 of 24 on any one day.{(" 
 {audit_html}
 {size_html}
 <div class="box truthonly"><h2>Hour by hour</h2>
+<p class="means"><b>How to read the ticks:</b> ✓ only means the true value fell inside that range. It does not mean the
+range is accurate or useful. A very wide range collects ticks easily, so always look at the width as well.</p>
 <div class="tablewrap"><table class="hours"><thead><tr><th>Hour</th><th>True value</th>{head}</tr></thead><tbody>{trs}</tbody></table></div></div>
 <div class="box hiddenonly"><h2>Hour by hour</h2><p>Reveal the true values to see every hour's range and whether it held.</p></div>
 <div class="box"><h2>What the words mean</h2><dl>
@@ -342,7 +344,7 @@ perfectly honest model can land well above or below 19 of 24 on any one day.{(" 
 <dt>Coverage</dt><dd>How often the truth really fell inside. An honest 80% range has coverage close to 80%.</dd>
 <dt>Bits (quantization)</dt><dd>How precisely each learned number in the model is stored. 32 bits is full precision; fewer bits make the model smaller and cheaper to run, but add rounding errors.</dd>
 <dt>Width</dt><dd>Upper value minus lower value. Narrow is useful, but only if the coverage holds. A very wide range is "right" without telling you anything.</dd>
-<dt>Conformal fix</dt><dd>A correction that widens or narrows the range using the model's own recent misses. It needs no retraining.</dd>
+<dt>Conformal recalibration (the "fix")</dt><dd>A correction that widens or narrows the range using the model's own recent misses. It needs no retraining. It can restore the 80% promise, but it cannot make the forecast sharper or more accurate.</dd>
 <dt>Interval score</dt><dd>One number that rewards narrow ranges and punishes every miss. Lower is better. We use it to catch ranges that cover only by being huge.</dd>
 <dt>95% confidence interval</dt><dd>How sure we are of a measured coverage. Narrow interval = lots of data = a firm number.</dd>
 </dl></div>

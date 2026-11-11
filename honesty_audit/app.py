@@ -41,7 +41,7 @@ iframe{{width:100%;height:calc(100vh - 150px);min-height:620px;border:0;display:
 <label>City<select name="city">{city_opts}</select></label>
 <label>Day to forecast<input type="date" name="date" min="{first}" max="{last}" value="{last}" required></label>
 <label>Shrink the model to<select name="bits">{bit_opts}</select></label>
-<label class="check"><input type="checkbox" name="fix" value="1" checked> also show the conformal fix</label>
+<label class="check"><input type="checkbox" name="fix" value="1" checked> also show conformal recalibration (widens or narrows the range)</label>
 <button type="submit">Forecast</button>
 </form>
 <iframe name="out" title="Forecast result" srcdoc="&lt;p style='font-family:system-ui;padding:24px;color:#4a5665'&gt;Choose a city, a day and a bit-width, then press Forecast.&lt;/p&gt;"></iframe>
