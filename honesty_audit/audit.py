@@ -309,6 +309,60 @@ def breaking_points(results: dict, cfg: AuditConfig) -> dict:
     return out
 
 
+def real_int8_coverage(base: Forecaster, windows: list[Window], cfg: AuditConfig, log=print) -> dict:
+    """Does the simulation tell the truth? Compare simulated 8-bit with a REAL int8 model.
+
+    Both models forecast the same test windows (no fix applied). For each range we report
+    the coverage of each, and the paired difference (real minus simulated) with its CI.
+    The two are not expected to match exactly: the simulation uses one scale per output
+    row of each weight matrix, while PyTorch's dynamic int8 uses one scale per whole matrix.
+    """
+    import torch
+    from torch.ao.quantization import quantize_dynamic
+
+    test = [w for w in windows if w.split == "test"]
+    contexts = [w.context for w in test]
+    Y = np.array([w.target for w in test])
+    sid = np.array([w.series_id for w in test])
+    scales = np.array([M.series_scale(w.context, cfg.season) for w in test])
+    levels = np.asarray(base.quantile_levels)
+    med_idx = _quantile_index(levels, 0.5)
+
+    sim = base.clone()
+    compress_(sim.module, "quant", 8, [])
+    real = base.clone()
+    real.set_module(quantize_dynamic(real.module, {torch.nn.Linear}, dtype=torch.qint8))
+
+    out = {"n_test_windows": len(test), "models": {}, "levels": {}}
+    preds = {}
+    for name, f in (("simulated 8-bit", sim), ("real int8", real)):
+        log(f"[int8 check] {name}: forecasting {len(test)} test windows ...")
+        Q = np.sort(f.predict(contexts, cfg.horizon), axis=-1)
+        preds[name] = Q
+        out["models"][name] = {
+            "median_scaled_mae": float((np.abs(Q[:, :, med_idx] - Y) / scales[:, None]).mean())}
+
+    for nominal in cfg.nominal_levels:
+        alpha = 1 - nominal
+        lo_i = _quantile_index(levels, round(alpha / 2, 4))
+        hi_i = _quantile_index(levels, round(1 - alpha / 2, 4))
+        lv, cov = {}, {}
+        for name, Q in preds.items():
+            lo, hi = Q[..., lo_i], Q[..., hi_i]
+            lv[name] = M.summarize_interval(lo, hi, Y, alpha, scales, sid, cfg.n_boot, cfg.seed)
+            lv[name]["verdict"] = _verdict(lv[name]["coverage"], nominal, cfg.tolerance)
+            cov[name] = M.covered(lo, hi, Y)
+        diff = M.paired_difference(cov["simulated 8-bit"], cov["real int8"], sid, cfg.n_boot, cfg.seed)
+        # the simulation is "confirmed" when real int8 is within the tolerance of it, both ways
+        diff["simulation_confirmed"] = bool(diff["lo"] >= -cfg.tolerance and diff["hi"] <= cfg.tolerance)
+        lv["real_minus_simulated"] = diff
+        out["levels"][str(nominal)] = lv
+        log(f"         {int(nominal * 100)}% range: simulated {lv['simulated 8-bit']['coverage']['mean']:.3f}, "
+            f"real {lv['real int8']['coverage']['mean']:.3f}, "
+            f"difference {diff['mean']:+.3f} [{diff['lo']:+.3f}, {diff['hi']:+.3f}]")
+    return out
+
+
 def real_int8_speed(base: Forecaster, contexts, horizon: int, log=print) -> dict:
     """Time a REAL int8 model (PyTorch dynamic quantization of Linear layers, CPU only).
 

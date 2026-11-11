@@ -1,4 +1,6 @@
 __pycache__/
 .pytest_cache/
-results/
 *.pyc
+# test runs: synthetic self-test and the 5-day quick check are not research results
+results/selftest/
+results/quickcheck/

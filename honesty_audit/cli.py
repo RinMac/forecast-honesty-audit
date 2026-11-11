@@ -26,7 +26,7 @@ import os
 
 import numpy as np
 
-from .audit import AuditConfig, run_audit
+from .audit import AuditConfig, real_int8_coverage, run_audit
 from .data import (fetch_open_meteo, fetch_open_meteo_many, load_csv, make_synthetic_load,
                    make_windows)
 from .models import TinyQuantileNet, load_model
@@ -76,6 +76,16 @@ def main(argv=None):
     r.add_argument("--no-keep-io", action="store_true")
     r.add_argument("--real-int8", action="store_true")
     r.add_argument("--seed", type=int, default=0)
+    c = sub.add_parser("int8check", help="compare simulated 8-bit coverage with a real int8 model")
+    c.add_argument("--model", default="chronos-bolt-small")
+    c.add_argument("--data", required=True)
+    c.add_argument("--out", required=True, help="folder of the main run; int8_check.json is written there")
+    c.add_argument("--context", type=int, default=512)
+    c.add_argument("--horizon", type=int, default=24)
+    c.add_argument("--n-calib", type=int, default=20)
+    c.add_argument("--n-test", type=int, default=20)
+    c.add_argument("--tolerance", type=float, default=0.05)
+    c.add_argument("--seed", type=int, default=0)
     g = sub.add_parser("report", help="rebuild the HTML report from results.json")
     g.add_argument("results")
     args = p.parse_args(argv)
@@ -85,6 +95,23 @@ def main(argv=None):
             res = json.load(fh)
         path = write_report(res, os.path.dirname(args.results) or ".")
         print(f"report written to {path}")
+        return
+
+    if args.cmd == "int8check":
+        # use the same windows as the main run: same data, context, horizon, n-calib and n-test
+        cfg = AuditConfig(context_len=args.context, horizon=args.horizon, n_calib=args.n_calib,
+                          n_test=args.n_test, tolerance=args.tolerance, seed=args.seed)
+        series, data_desc = _load_data(args.data, args.seed)
+        windows = make_windows(series, cfg.context_len, cfg.horizon, cfg.n_calib, cfg.n_test)
+        model = load_model(args.model)
+        res = real_int8_coverage(model, windows, cfg)
+        res["meta"] = {"model": model.name, "model_revision": getattr(model, "revision", None),
+                       "data": data_desc, "tolerance": cfg.tolerance}
+        os.makedirs(args.out, exist_ok=True)
+        path = os.path.join(args.out, "int8_check.json")
+        with open(path, "w") as fh:
+            json.dump(res, fh, indent=1)
+        print(f"[int8 check] written to {path}")
         return
 
     np.random.seed(args.seed)
