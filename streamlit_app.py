@@ -19,7 +19,7 @@ DATA = "csv:data/open_meteo_10cities_2025-06-01_2026-10-31.csv:temperature_2m:ti
 MODEL = "chronos-bolt-tiny"  # the smallest size: fast, and it fits in a free server's memory
 BITS = {"32-bit (full model)": 32, "16-bit": 16, "8-bit": 8, "6-bit": 6, "4-bit": 4, "3-bit": 3, "2-bit": 2}
 
-st.set_page_config(page_title="Forecast Honesty Audit: live demo", layout="wide")
+st.set_page_config(page_title="Auditing Uncertainty in Time-Series AI Models: live demo", layout="wide")
 
 
 @st.cache_resource(show_spinner="Loading the forecasting model (first visit only) ...")
@@ -34,8 +34,8 @@ some = next(iter(series.values()))
 first = pd.Timestamp(some.index[512]).ceil("D").date()  # first day with enough history before it
 last = pd.Timestamp(some.index[-1]).date()
 
-st.title("When does a smaller forecasting AI stop being honest?")
-st.caption(f"Live demo with {model.name}. You choose; the forecast is made now. Nothing is pre-computed. "
+st.title("Auditing Uncertainty in Time-Series AI Models")
+st.caption(f"When does a smaller forecasting AI stop being honest? Live demo with {model.name}. You choose; the forecast is made now. Nothing is pre-computed. "
            "Data: hourly temperature in 10 Indian cities (Open-Meteo).")
 
 with st.form("choices"):

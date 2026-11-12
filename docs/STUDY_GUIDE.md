@@ -1,4 +1,6 @@
-# Study guide: the whole project, explained
+# Auditing Uncertainty in Time-Series AI Models
+
+**Study guide: the whole project, explained**
 
 For Rishi and Soham. Read this until you can explain every part without looking. It is written
 in plain language, and it answers the questions you are likely to be asked, including the small

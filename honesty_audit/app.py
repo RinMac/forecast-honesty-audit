@@ -23,7 +23,7 @@ def _form_page(model_name: str, cities: list[str], first: str, last: str) -> str
                         for c in cities)
     bit_opts = "".join(f'<option value="{b}"{" selected" if b == 4 else ""}>{label}</option>' for b, label in BITS)
     return f"""<!doctype html><html lang="en"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1"><title>Forecast Honesty Audit: live demo</title>
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>Auditing Uncertainty in Time-Series AI Models: live demo</title>
 <style>
 body{{font-family:system-ui,Segoe UI,Arial,sans-serif;margin:0;background:#f6f7f9;color:#1b2430}}
 header{{background:#1b2430;color:#fff;padding:14px 20px}} h1{{font-size:1.25rem;margin:0}}
@@ -35,8 +35,8 @@ label.check{{flex-direction:row;align-items:center;gap:8px;padding-bottom:8px}}
 button{{font:inherit;font-weight:600;padding:10px 20px;border-radius:8px;border:0;background:#2f6fb0;color:#fff;cursor:pointer}}
 iframe{{width:100%;height:calc(100vh - 150px);min-height:620px;border:0;display:block}}
 </style></head><body>
-<header><h1>When does a smaller forecasting AI stop being honest?</h1>
-<p>Live demo with {html.escape(model_name)}. You choose; the laptop forecasts now, offline. Nothing is pre-computed.</p></header>
+<header><h1>Auditing Uncertainty in Time-Series AI Models</h1>
+<p>When does a smaller forecasting AI stop being honest? Live demo with {html.escape(model_name)}. You choose; the laptop forecasts now, offline. Nothing is pre-computed.</p></header>
 <form action="/demo" target="out" method="get">
 <label>City<select name="city">{city_opts}</select></label>
 <label>Day to forecast<input type="date" name="date" min="{first}" max="{last}" value="{last}" required></label>

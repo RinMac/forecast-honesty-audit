@@ -1,9 +1,9 @@
-# Forecast honesty audit
+# Auditing Uncertainty in Time-Series AI Models
 
 **Research question:** how far can a time-series foundation model be compressed before its
 prediction intervals stop being reliable, and how much further does conformal recalibration let it go?
 
-Aavishkar 2026-27, Engineering & Technology (UG). Rin-gt and Soham.
+Aavishkar 2026-27, Engineering & Technology (UG). Rishi and Soham.
 
 When a forecasting model gives an 80% range, about 8 in 10 true values should land inside it.
 This tool compresses a model step by step (16, 8, 6, 4, 3 and 2 bits, and optionally pruning),

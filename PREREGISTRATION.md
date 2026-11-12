@@ -194,3 +194,8 @@ file, with the reason, in a new commit. The original text stays in the Git histo
 
 The audit code was written with the help of Claude (Anthropic), which also acted as a reviewer
 and helped draft this document. The decisions in sections 5, 7 and 8 were made by the authors.
+
+## Deviations
+
+- **12 November 2026: title only.** The project is now presented under the shorter title
+  "Auditing Uncertainty in Time-Series AI Models". The research question, data, tests and rules above are unchanged.
