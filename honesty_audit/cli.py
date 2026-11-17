@@ -27,8 +27,8 @@ import os
 import numpy as np
 
 from .audit import AuditConfig, real_int8_coverage, run_audit
-from .data import (fetch_open_meteo, fetch_open_meteo_many, load_csv, make_synthetic_load,
-                   make_windows)
+from .data import (WEATHER_MODEL, fetch_open_meteo, fetch_open_meteo_many, load_csv,
+                   make_synthetic_load, make_windows)
 from .models import TinyQuantileNet, load_model
 from .report import write_report
 
@@ -40,11 +40,11 @@ def _load_data(spec: str, seed: int):
     if kind == "open-meteo":
         lat, lon, start, end = rest.split(",")
         return (fetch_open_meteo(float(lat), float(lon), start, end, name="navi_mumbai_temp"),
-                f"Open-Meteo hourly temperature at {lat},{lon}, {start} to {end} (reanalysis)")
+                f"Open-Meteo hourly temperature at {lat},{lon}, {start} to {end} (model {WEATHER_MODEL})")
     if kind == "open-meteo-cities":
         start, end = rest.split(",")
         return (fetch_open_meteo_many(start, end),
-                f"Open-Meteo hourly temperature, 10 Indian cities, {start} to {end} (reanalysis)")
+                f"Open-Meteo hourly temperature, 10 Indian cities, {start} to {end} (model {WEATHER_MODEL})")
     if kind == "csv":
         parts = rest.split(":")
         path, value_col = parts[0], parts[1]
@@ -100,6 +100,9 @@ def main(argv=None):
     a.add_argument("--data", default="csv:data/open_meteo_10cities_2025-06-01_2026-10-31.csv:temperature_2m:timestamp:city")
     a.add_argument("--port", type=int, default=8765)
     a.add_argument("--no-open", action="store_true", help="do not open the page in the browser")
+    pp = sub.add_parser("paper", help="tables and figures for the paper, straight from results.json")
+    pp.add_argument("--results", default="results")
+    pp.add_argument("--out", default="paper")
     g = sub.add_parser("report", help="rebuild the HTML report from results.json")
     g.add_argument("results")
     args = p.parse_args(argv)
@@ -109,6 +112,13 @@ def main(argv=None):
             res = json.load(fh)
         path = write_report(res, os.path.dirname(args.results) or ".")
         print(f"report written to {path}")
+        return
+
+    if args.cmd == "paper":
+        from .paper import make_all
+
+        for path in make_all(args.results, args.out):
+            print(f"[paper] written {path}")
         return
 
     if args.cmd == "app":

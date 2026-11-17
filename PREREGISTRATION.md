@@ -199,3 +199,8 @@ and helped draft this document. The decisions in sections 5, 7 and 8 were made b
 
 - **12 November 2026: title only.** The project is now presented under the shorter title
   "Auditing Uncertainty in Time-Series AI Models". The research question, data, tests and rules above are unchanged.
+- **17 November 2026: description of the data source only.** Section 4 calls the values
+  "reanalysis". A check on 17 Nov showed the frozen file matches Open-Meteo's `ecmwf_ifs` model
+  (ECMWF IFS, 9 km) exactly, and does not match ERA5. The data file and its checksum are
+  unchanged; only the description is corrected. The code now requests `ecmwf_ifs` by name so
+  later downloads (such as the check on new days in section 10) use the same source.

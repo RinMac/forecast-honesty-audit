@@ -77,7 +77,8 @@ works offline apart from fonts). In Colab, use `notebooks/run_audit_colab.ipynb`
 ## Known limits
 
 - Simulated quantization does not measure real speed or memory on a phone.
-- Open-Meteo values are reanalysis, not station readings, and are free for non-commercial use.
+- Open-Meteo values here come from the ECMWF IFS weather model (9 km), not station readings, and are free
+  for non-commercial use. The code requests that model by name (`ecmwf_ifs`).
 - `TimesFM25Forecaster` follows the TimesFM README's API; check it against the version you install.
 - Coverage is pooled and per step ahead; conditional coverage (Decker & Tresp, 2026) is future work.
 

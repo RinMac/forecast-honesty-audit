@@ -105,3 +105,23 @@ def test_verdict_three_way_and_vs_full():
     assert _verdict_vs_full({"lo": -0.12, "hi": -0.07}, 0.05) == "worse than full"
     assert _verdict_vs_full({"lo": -0.03, "hi": 0.01}, 0.05) == "as good as full"
     assert _verdict_vs_full({"lo": -0.08, "hi": -0.02}, 0.05) == "inconclusive"
+
+
+def test_accuracy_breaking_point_uses_the_10_percent_rule():
+    from honesty_audit.audit import accuracy_breaking_points
+
+    def v(name, method, level, mae, keep=False):
+        return {"name": name, "method": method, "level": level, "keep_io": keep, "median_scaled_mae": mae}
+
+    res = {"variants": [v("fp32 (full)", "none", 32, 1.00), v("8-bit", "quant", 8, 1.00),
+                        v("4-bit", "quant", 4, 1.10), v("3-bit", "quant", 3, 1.25), v("2-bit", "quant", 2, 4.0)]}
+    out = accuracy_breaking_points(res, 0.10)["all layers"]
+    assert out["breaks_at"] == "3-bit"  # exactly 10% worse (4-bit) is still allowed
+    assert out["error_ratio"]["2-bit"] == 4.0
+
+
+def test_software_versions_are_recorded():
+    from honesty_audit.audit import software_versions
+
+    v = software_versions()
+    assert v["python"] and v["numpy"]

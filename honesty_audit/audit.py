@@ -24,6 +24,10 @@ the results so nobody can move the goalposts afterwards):
   is more than `usefulness_max_worse` (10%) worse than the score of the uncompressed
   model with no fix applied.
 
+ACCURACY RULE (hypothesis H2 of the pre-registration): accuracy "breaks" at the first
+  precision whose scaled median error is more than `accuracy_max_worse` (10%) worse than
+  the uncompressed model's. Reported next to the coverage breaking point.
+
 The BREAKING POINT of a method is the first precision, going down from 16 bits,
 that fails or is too wide. "Safe down to" is the lowest precision for which it
 and every higher precision passes. Inconclusive levels are never called safe.
@@ -62,6 +66,7 @@ class AuditConfig:
     compare_keep_io: bool = True  # also run each bit-width with input/output layers kept
     tolerance: float = 0.05
     usefulness_max_worse: float = 0.10  # interval score may be at most 10% worse than the full model's
+    accuracy_max_worse: float = 0.10  # median error more than 10% worse = accuracy has broken (H2)
     n_boot: int = 2000
     seed: int = 0
     aci_gamma: float = 0.05
@@ -262,12 +267,16 @@ def run_audit(base: Forecaster, windows: list[Window], cfg: AuditConfig,
         results["real_int8"] = real_int8_speed(base, contexts[:64], H, log)
 
     results["breaking_points"] = breaking_points(results, cfg)
+    results["accuracy_breaking_points"] = accuracy_breaking_points(results, cfg.accuracy_max_worse)
     results["meta"] = {
         "model": base.name,
         "n_windows": int(len(windows)), "n_test_windows": int(test.sum()),
         "n_series": int(len(np.unique(sid))),
         "config": asdict(cfg),
         "model_revision": getattr(base, "revision", None),
+        "versions": software_versions(),
+        "accuracy_rule": (f"accuracy breaks at the first precision whose scaled median error is more than "
+                          f"{cfg.accuracy_max_worse:.0%} worse than the uncompressed model's"),
         "pre_registered_rule": (f"FAIL if the 95% CI upper bound of coverage < nominal - {cfg.tolerance}; "
                                 f"pass if the CI lower bound >= nominal - {cfg.tolerance}; inconclusive in between; "
                                 f"over-cautious if the CI lower bound > nominal + {cfg.tolerance}; "
@@ -306,6 +315,40 @@ def breaking_points(results: dict, cfg: AuditConfig) -> dict:
                     continue
                 out[f"{int(nominal * 100)}% | {m} | {'I/O kept' if keep else 'all layers'}"] = {
                     "safe_down_to": safe, "breaks_at": broke, "first_worse_than_full": worse}
+    return out
+
+
+def accuracy_breaking_points(results: dict, max_worse: float = 0.10) -> dict:
+    """Where does the MEDIAN forecast stop being accurate? Same chain as breaking_points.
+
+    error_ratio = scaled median error of a level / that of the uncompressed model.
+    Works on any results.json, including ones written before this function existed.
+    """
+    quant = [v for v in results["variants"] if v["method"] in ("none", "quant")]
+    full = next(v for v in quant if v["method"] == "none")["median_scaled_mae"]
+    out = {}
+    for keep in (False, True):
+        chain = sorted([v for v in quant if v["method"] == "none" or v["keep_io"] == keep],
+                       key=lambda v: -v["level"])
+        if keep and len(chain) == 1:
+            continue
+        ratios = {v["name"]: round(v["median_scaled_mae"] / full, 4) for v in chain}
+        broke = next((n for n, r in ratios.items() if r > 1 + max_worse), None)
+        out["I/O kept" if keep else "all layers"] = {"breaks_at": broke, "error_ratio": ratios}
+    return out
+
+
+def software_versions() -> dict:
+    """Versions of Python and the main packages, so a run can be repeated exactly."""
+    import platform
+    from importlib import metadata
+
+    out = {"python": platform.python_version(), "platform": platform.platform()}
+    for pkg in ("numpy", "pandas", "torch", "chronos-forecasting", "transformers"):
+        try:
+            out[pkg] = metadata.version(pkg)
+        except metadata.PackageNotFoundError:
+            out[pkg] = None
     return out
 
 

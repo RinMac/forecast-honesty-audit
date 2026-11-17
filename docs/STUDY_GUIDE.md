@@ -174,7 +174,8 @@ results. Ours is `PREREGISTRATION.md`.
 ## 3. What we actually did, step by step
 
 1. **Got real data.** Hourly temperature for 10 Indian cities, 1 June 2025 to 31 October 2026,
-   from Open-Meteo (reanalysis: weather-model reconstructions, not direct station readings).
+   from Open-Meteo's historical API, produced by the ECMWF IFS weather model at 9 km (model-based
+   estimates, not direct station readings).
    12,432 hours per city, no gaps. Frozen in one CSV file with a published checksum.
 2. **Cut it into windows.** The last 365 days per city are test windows (1 Nov 2025 to
    31 Oct 2026): 3,650 forecasts, 87,600 hourly values. The 60 days before that are the first

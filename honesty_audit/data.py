@@ -49,21 +49,32 @@ def load_csv(path: str, value_col: str, time_col: str | None = None,
     return out
 
 
+# Open-Meteo's default ("best_match") silently mixes several weather models. We ask for one
+# named model so the data can be cited and re-downloaded exactly. Checked on 17 Nov 2026: for
+# our cities and period, best_match returned values identical to "ecmwf_ifs" (ECMWF IFS, 9 km),
+# so pinning it does not change the frozen data.
+WEATHER_MODEL = "ecmwf_ifs"
+
+
 def fetch_open_meteo(latitude: float, longitude: float, start: str, end: str,
-                     variable: str = "temperature_2m", name: str = "open_meteo") -> dict[str, pd.Series]:
+                     variable: str = "temperature_2m", name: str = "open_meteo",
+                     model: str = WEATHER_MODEL) -> dict[str, pd.Series]:
     """Hourly historical weather from Open-Meteo's free archive API (no key needed).
 
-    Values are model reanalysis, not direct station readings. Free for non-commercial use.
+    Values come from a weather model (ECMWF IFS by default), not direct station readings.
+    Free for non-commercial use.
     Example (Nerul, Navi Mumbai): fetch_open_meteo(19.03, 73.02, "2025-01-01", "2026-10-31")
     """
     query = urllib.parse.urlencode({
         "latitude": latitude, "longitude": longitude, "start_date": start,
-        "end_date": end, "hourly": variable, "timezone": "Asia/Kolkata",
+        "end_date": end, "hourly": variable, "timezone": "Asia/Kolkata", "models": model,
     })
     url = f"https://archive-api.open-meteo.com/v1/archive?{query}"
     with urllib.request.urlopen(url, timeout=60) as resp:
         payload = json.load(resp)
-    s = pd.Series(payload["hourly"][variable], index=pd.to_datetime(payload["hourly"]["time"]),
+    # with a named model the API may add the model name to the column (temperature_2m_ecmwf_ifs)
+    key = variable if variable in payload["hourly"] else f"{variable}_{model}"
+    s = pd.Series(payload["hourly"][key], index=pd.to_datetime(payload["hourly"]["time"]),
                   dtype=float)
     return {name: s.interpolate(limit=6).dropna()}
 
@@ -77,12 +88,12 @@ INDIAN_CITIES = {
 
 
 def fetch_open_meteo_many(start: str, end: str, cities: dict | None = None,
-                          variable: str = "temperature_2m") -> dict[str, pd.Series]:
+                          variable: str = "temperature_2m", model: str = WEATHER_MODEL) -> dict[str, pd.Series]:
     """One series per city. The bootstrap resamples whole series, so we need several:
     with a single series the confidence interval would be meaningless."""
     out = {}
     for name, (lat, lon) in (cities or INDIAN_CITIES).items():
-        out.update(fetch_open_meteo(lat, lon, start, end, variable, name=name))
+        out.update(fetch_open_meteo(lat, lon, start, end, variable, name=name, model=model))
     return out
 
 
