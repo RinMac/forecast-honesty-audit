@@ -81,7 +81,7 @@ def table2(R: dict, level: str = "80") -> str:
         cells = []
         for m in methods:
             b = bp[f"{level}% | {m} | all layers"]
-            cells.append(f"{_short(b['safe_down_to'])} (breaks at {_short(b['breaks_at'])})")
+            cells.append(f"{_short(b['safe_down_to'])} / {_short(b['breaks_at'])}")
         rows.append(f"| Chronos-Bolt-{size} | " + " | ".join(cells) + " |")
     return "\n".join(rows)
 
@@ -149,7 +149,7 @@ def write_tables(R: dict, path: str) -> None:
         "## Table 1. Chronos-Bolt-small, 80% interval, all linear layers quantized, own intervals",
         table1(R["small"]) if "small" in R else "(small not run)",
         "## Table 2. Lowest precision that passes, 80% interval, all layers quantized",
-        "Each cell: safe down to (breaks at).",
+        "Each cell: safe down to / breaks at.",
         table2(R),
         "## Table 3. Coverage breaking point against accuracy breaking point (hypothesis H2)",
         table_accuracy(R),

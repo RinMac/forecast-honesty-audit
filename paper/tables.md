@@ -16,14 +16,14 @@ Model run settings: 3650 test windows per model, 10 cities, 60 calibration days,
 
 ## Table 2. Lowest precision that passes, 80% interval, all layers quantized
 
-Each cell: safe down to (breaks at).
+Each cell: safe down to / breaks at.
 
 | Model | Own intervals | Rolling split CQR | Static split CQR | Weighted CQR | Adaptive (ACI) |
 | --- | --- | --- | --- | --- | --- |
-| Chronos-Bolt-tiny | 4-bit (breaks at 3-bit) | 4-bit (breaks at 3-bit) | 4-bit (breaks at 3-bit) | 4-bit (breaks at 3-bit) | 4-bit (breaks at 3-bit) |
-| Chronos-Bolt-mini | 4-bit (breaks at 3-bit) | 4-bit (breaks at 3-bit) | 4-bit (breaks at 3-bit) | 4-bit (breaks at 3-bit) | 4-bit (breaks at 3-bit) |
-| Chronos-Bolt-small | 4-bit (breaks at 3-bit) | 4-bit (breaks at 3-bit) | 4-bit (breaks at 3-bit) | 4-bit (breaks at 3-bit) | 4-bit (breaks at 3-bit) |
-| Chronos-Bolt-base | 4-bit (breaks at 3-bit) | 4-bit (breaks at 3-bit) | 4-bit (breaks at 3-bit) | 4-bit (breaks at 3-bit) | 4-bit (breaks at 3-bit) |
+| Chronos-Bolt-tiny | 4-bit / 3-bit | 4-bit / 3-bit | 4-bit / 3-bit | 4-bit / 3-bit | 4-bit / 3-bit |
+| Chronos-Bolt-mini | 4-bit / 3-bit | 4-bit / 3-bit | 4-bit / 3-bit | 4-bit / 3-bit | 4-bit / 3-bit |
+| Chronos-Bolt-small | 4-bit / 3-bit | 4-bit / 3-bit | 4-bit / 3-bit | 4-bit / 3-bit | 4-bit / 3-bit |
+| Chronos-Bolt-base | 4-bit / 3-bit | 4-bit / 3-bit | 4-bit / 3-bit | 4-bit / 3-bit | 4-bit / 3-bit |
 
 ## Table 3. Coverage breaking point against accuracy breaking point (hypothesis H2)
 
