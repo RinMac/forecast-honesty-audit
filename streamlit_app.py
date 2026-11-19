@@ -50,7 +50,8 @@ if go:
     try:
         with st.spinner("Forecasting ..."):
             result = run_demo(model, series, city, str(day), bits, fix=fix)
-        components.html(render_html(result), height=3600, scrolling=True)
+        # the full page with the hour table is about 4,300 px tall on a laptop screen; leave room
+        components.html(render_html(result), height=5000, scrolling=True)
     except ValueError as e:  # for example a date without enough history for the fix
         st.error(str(e))
 else:

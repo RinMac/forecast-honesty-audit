@@ -33,7 +33,9 @@ def _origin(s: pd.Series, date: str, need_before: int, horizon: int) -> int:
     first_ok = pd.Timestamp(s.index[need_before]).ceil("D").date() if need_before < len(s) else None
     last_ok = pd.Timestamp(s.index[len(s) - horizon]).date()
     if pos < need_before or pos + horizon > len(s):
-        raise ValueError(f"pick a date from {first_ok} to {last_ok} (the model needs history before it)")
+        why = (f"the data ends on {last_ok}" if pos + horizon > len(s) or pos == -1 and pd.Timestamp(date) > s.index[-1]
+               else "the model needs history before the chosen day")
+        raise ValueError(f"pick a date from {first_ok} to {last_ok} ({why})")
     return int(pos)
 
 
@@ -45,7 +47,11 @@ def _range_80(model, contexts, horizon):
     return pick(0.1), pick(0.5), pick(0.9)
 
 
-def audit_summary(model_name: str, bits: int, results_dir: str = "results") -> dict | None:
+ALLOWED_BITS = (32, 16, 8, 6, 5, 4, 3, 2)
+RESULTS_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "results")
+
+
+def audit_summary(model_name: str, bits: int, results_dir: str = RESULTS_DIR) -> dict | None:
     """What the full pre-registered audit found for this model and bit-width (80% range).
 
     Reads results/full_<model>/results.json written by `python -m honesty_audit run`.
@@ -82,6 +88,9 @@ def run_demo(model, series: dict[str, pd.Series], city: str, date: str, bits: in
              n_calib: int = 60, season: int = 24) -> dict:
     if city not in series:
         raise ValueError(f"unknown city {city!r}; choose from {', '.join(series)}")
+    if bits not in ALLOWED_BITS:  # 1 bit would leave no rounding levels at all
+        raise ValueError(f"bits must be one of {', '.join(map(str, ALLOWED_BITS))}")
+    date = str(pd.Timestamp(date).normalize().date()) if date else date  # forecasts always start at midnight
     s = series[city]
     need = context_len + (n_calib * horizon if fix else 0)
     o = _origin(s, date, need, horizon)
@@ -273,13 +282,25 @@ advance. This is the result that counts; the single day above only shows how the
 <p class="means">Across those days the middle forecast's error was {a["error_vs_full"]:.2f} times the full model's
 ({"no change" if abs(a["error_vs_full"] - 1) < 0.005 else "more than 1 means less accurate"}).</p></div>"""
 
-    # ---- hour by hour
-    head = "".join(f"<th>{e(lab)}</th>" for _, _, lab in bands)
+    # ---- hour by hour: the ranges are always shown (they are the forecast); the true value
+    # and the tick/cross only appear after "Reveal", so the audience can still guess first
+    head = "".join(f'<th><i class="sw" style="background:{col}55;border:1.5px solid {col}"></i>{e(lab)}</th>'
+                   for _, col, lab in bands)
     trs = ""
     for i in range(H):
-        cells = "".join(f'<td class="{"ok" if d[k]["hits"][i] else "no"}">{d[k]["lo"][i]:.1f}° to {d[k]["hi"][i]:.1f}° '
-                        f'{"✓" if d[k]["hits"][i] else "✗"}</td>' for k, _, _ in bands)
-        trs += f'<tr><td>{e(d["hours"][i][11:16])}</td><td><b>{d["truth"][i]:.1f}°</b></td>{cells}</tr>'
+        cells = ""
+        for k, _, _ in bands:
+            lo, hi, hit = d[k]["lo"][i], d[k]["hi"][i], d[k]["hits"][i]
+            cells += (f'<td class="rng {"ok" if hit else "no"}">{lo:.1f}° to {hi:.1f}°'
+                      f'<span class="truthonly mark">{"✓ inside" if hit else "✗ outside"}</span>'
+                      f'<small>width {hi - lo:.1f}°</small></td>')
+        trs += (f'<tr><td>{e(d["hours"][i][11:16])}</td>'
+                f'<td><b class="truthonly">{d["truth"][i]:.1f}°</b><span class="hiddenonly qm">?</span></td>{cells}</tr>')
+    foot_inside = "".join(f'<td><b class="truthonly">{d[k]["inside"]} / {H} inside</b><span class="hiddenonly qm">? / {H}</span></td>'
+                          for k, _, _ in bands)
+    foot_width = "".join(f'<td>{d[k]["width"]:.1f}°</td>' for k, _, _ in bands)
+    tfoot = (f'<tfoot><tr><td colspan="2">Inside the range</td>{foot_inside}</tr>'
+             f'<tr><td colspan="2">Average width</td>{foot_width}</tr></tfoot>')
     fix_note = ""
     if "fixed" in d:
         f = d["fixed"]
@@ -314,7 +335,12 @@ table.mini td:last-child{{text-align:right;font-weight:600;white-space:nowrap}} 
 .arow{{margin:12px 0}} .bar{{max-width:560px}} .track{{fill:#eef0f3}} .failzone{{fill:#c0392b;fill-opacity:.13}}
 .ci{{stroke:#1b2430;stroke-width:3}} .promise{{stroke:#1b2430;stroke-width:1.5;stroke-dasharray:3 3}}
 table.hours{{width:100%;border-collapse:collapse;font-size:.85rem}} table.hours th,table.hours td{{padding:4px 8px;border-bottom:1px solid #e6e9ee;text-align:left}}
-td.ok{{color:#1f6b42}} td.no{{color:#c0392b;font-weight:600}}
+table.hours th{{white-space:nowrap;font-size:.8rem;color:#4a5665}} table.hours td small{{display:block;color:#6a7686;font-size:.75rem}}
+table.hours tfoot td{{font-weight:600;border-top:2px solid #c9d2dc;border-bottom:0}}
+td.rng{{white-space:nowrap}} .mark{{display:block;font-weight:600;font-size:.8rem}} .qm{{color:#9aa5b3}}
+body:not(.hide) td.rng.ok{{color:#1f6b42}} body:not(.hide) td.rng.no{{color:#c0392b;font-weight:600}}
+body:not(.hide) td.rng.no small{{color:#c0392b}}
+.hint{{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:8px 0}}
 dl{{margin:0;font-size:.9rem}} dt{{font-weight:600;margin-top:8px}} dd{{margin:0;color:#4a5665}}
 button{{font:inherit;padding:10px 16px;border-radius:8px;border:1px solid #1b2430;background:#1b2430;color:#fff;cursor:pointer}}
 body.hide .truth, body.hide .truthonly{{display:none}} body:not(.hide) .hiddenonly{{display:none}}
@@ -325,7 +351,7 @@ body.hide .truth, body.hide .truthonly{{display:none}} body:not(.hide) .hiddenon
 {d["context_days"]:.0f} days before this date and nothing after. It forecast the 24 hours of this date. It does not give one
 number per hour but a range, and promises: "I'm 80% sure the true temperature will be inside". We then shrank the model and
 asked it the same question. Each coloured band below is one model's 80% range.</p>
-<p><button id="reveal" type="button">Reveal the true values</button>
+<p><button id="reveal" class="reveal" type="button">Reveal the true values</button>
 <span class="sub hiddenonly"> Guess first: how many of the 24 true values will land inside each band?</span></p>
 <div class="box">{"".join(svg)}<div class="legend">{legend}</div></div>
 <div class="cards">{cards}</div>
@@ -334,11 +360,13 @@ perfectly honest model can land well above or below 19 of 24 on any one day.{(" 
 {fix_note}
 {audit_html}
 {size_html}
-<div class="box truthonly"><h2>Hour by hour</h2>
-<p class="means"><b>How to read the ticks:</b> ✓ only means the true value fell inside that range. It does not mean the
+<div class="box" id="hours"><h2>Hour by hour</h2>
+<p>Each model's 80% range for every hour of {e(d["date"])}, with its width.</p>
+<div class="hint hiddenonly"><span class="sub">The true values are hidden so you can guess first.</span>
+<button class="reveal" type="button">Reveal the true values</button></div>
+<p class="means truthonly"><b>How to read the ticks:</b> ✓ only means the true value fell inside that range. It does not mean the
 range is accurate or useful. A very wide range collects ticks easily, so always look at the width as well.</p>
-<div class="tablewrap"><table class="hours"><thead><tr><th>Hour</th><th>True value</th>{head}</tr></thead><tbody>{trs}</tbody></table></div></div>
-<div class="box hiddenonly"><h2>Hour by hour</h2><p>Reveal the true values to see every hour's range and whether it held.</p></div>
+<div class="tablewrap"><table class="hours"><thead><tr><th>Hour</th><th>True value</th>{head}</tr></thead><tbody>{trs}</tbody>{tfoot}</table></div></div>
 <div class="box"><h2>What the words mean</h2><dl>
 <dt>80% range (prediction interval)</dt><dd>A lower and an upper value. The model claims the truth will fall between them 80% of the time.</dd>
 <dt>Coverage</dt><dd>How often the truth really fell inside. An honest 80% range has coverage close to 80%.</dd>
@@ -349,9 +377,13 @@ range is accurate or useful. A very wide range collects ticks easily, so always 
 <dt>95% confidence interval</dt><dd>How sure we are of a measured coverage. Narrow interval = lots of data = a firm number.</dd>
 </dl></div>
 </main><script>
-document.getElementById("reveal").addEventListener("click", function () {{
-  var hidden = document.body.classList.toggle("hide");
-  this.textContent = hidden ? "Reveal the true values" : "Hide the true values";
+// every "Reveal" button on the page flips the same switch
+var buttons = document.querySelectorAll("button.reveal");
+buttons.forEach(function (b) {{
+  b.addEventListener("click", function () {{
+    var hidden = document.body.classList.toggle("hide");
+    buttons.forEach(function (x) {{ x.textContent = hidden ? "Reveal the true values" : "Hide the true values"; }});
+  }});
 }});
 </script></body></html>"""
 

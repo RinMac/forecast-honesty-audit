@@ -53,7 +53,8 @@ def _message_page(text: str) -> str:
             f"{html.escape(text)}</p>")
 
 
-def serve(model, series: dict, port: int = 8765, open_browser: bool = True) -> None:
+def make_server(model, series: dict, port: int = 8765) -> ThreadingHTTPServer:
+    """The web server, not yet started. port=0 lets the computer pick a free port (used by the tests)."""
     some = next(iter(series.values()))
     first = str(some.index[512].ceil("D").date())  # first day with enough history before it
     last = str(some.index[-1].date())
@@ -67,8 +68,11 @@ def serve(model, series: dict, port: int = 8765, open_browser: bool = True) -> N
             elif url.path == "/demo":
                 q = {k: v[0] for k, v in parse_qs(url.query).items()}
                 try:
+                    bits = q.get("bits", "4")
+                    if not bits.isdigit():
+                        raise ValueError(f"bits must be a whole number, not {bits!r}")
                     res = run_demo(model, series, q.get("city", ""), q.get("date", ""),
-                                   int(q.get("bits", 4)), fix="fix" in q)
+                                   int(bits), fix="fix" in q)
                     body = render_html(res)
                 except ValueError as e:  # wrong city or a date without enough history
                     body = _message_page(str(e))
@@ -85,11 +89,16 @@ def serve(model, series: dict, port: int = 8765, open_browser: bool = True) -> N
         def log_message(self, *args):  # keep the terminal quiet during the demo
             pass
 
-    address = f"http://127.0.0.1:{port}"
+    # "Threading" = it can answer a second request while the first is still open, so a
+    # browser that keeps a spare connection waiting cannot freeze the page
+    return ThreadingHTTPServer(("127.0.0.1", port), Handler)
+
+
+def serve(model, series: dict, port: int = 8765, open_browser: bool = True) -> None:
+    server = make_server(model, series, port)
+    address = f"http://127.0.0.1:{server.server_address[1]}"
     print(f"[app] ready at {address}  (press Ctrl+C here to stop)")
     if open_browser:
         import webbrowser
         webbrowser.open(address)
-    # "Threading" = it can answer a second request while the first is still open, so a
-    # browser that keeps a spare connection waiting cannot freeze the page
-    ThreadingHTTPServer(("127.0.0.1", port), Handler).serve_forever()
+    server.serve_forever()
